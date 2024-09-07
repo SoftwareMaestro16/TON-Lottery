@@ -14,11 +14,21 @@ describe('Main', () => {
     let blockchain: Blockchain;
     let deployer: SandboxContract<TreasuryContract>;
     let main: SandboxContract<Main>;
+    let owner: SandboxContract<TreasuryContract>;
+    let user: SandboxContract<TreasuryContract>;
 
     beforeEach(async () => {
         blockchain = await Blockchain.create();
+        owner = await blockchain.treasury('owner');
+        user = await blockchain.treasury('user');
 
-        main = blockchain.openContract(Main.createFromConfig({}, code));
+        main = blockchain.openContract(Main.createFromConfig({
+            owner: owner.address,
+            minChance: 100n,
+            maxChance: 100n,
+            minBet: toNano("0.25"),
+            maxBet: toNano("0.5"),
+        }, code));
 
         deployer = await blockchain.treasury('deployer');
 
