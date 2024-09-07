@@ -1,0 +1,191 @@
+{-
+  @SoftwareMaestro: random lottery with adjustable bets and its implementation
+  
+  Task: Develop a smart contract that implements a random lottery system with adjustable betting parameters.
+
+  1. Lottery Option (`op::lottery_min`) or (`op::lottery_max`): A user sends funds to the contract to participate in the lottery. The contract randomly determines whether the user wins and how much they receive based on the range of random numbers and the current betting settings.
+
+  2. Administrator Withdrawal Option (`op::withdraw`): The administrator can withdraw available funds from the contract while maintaining a minimum balance for ongoing operations.
+
+  3. Change Random Number Range Option (`op::change_random_numbers`): The administrator can adjust the range of random numbers used to determine the win amount (e.g., from 50% to 150% of the user's bet).
+
+  4. Change Minimum Bet Option (`op::change_min_bet`): The administrator can set the minimum amount required for participation in the lottery.
+
+  5. Change Maximum Bet Option (`op::change_max_bet`): The administrator can set the maximum amount allowed for participation in the lottery.
+
+  6. Lock Contract (`op::lock`): The contract owner can lock the contract, preventing any further fund deposits.
+
+  7. Unlock Contract (`op::unlock`): The contract owner can unlock the contract to resume normal operations.
+
+  8. Change Owner (`op::change_owner`): The contract owner will be changed and the rights will be transferred.
+-}
+
+#include "imports/stdlib.fc";
+#include "imports/op.fc";
+#include "imports/utils.fc";
+
+global slice storage::owner_address;
+global int storage::min_chance;
+global int storage::max_chance;
+global int storage::min_bet;
+global int storage::max_bet;
+global int storage::is_locked?;
+
+() load_data() impure inline {
+  var ds = get_data().begin_parse();
+    storage::owner_address = ds~load_msg_addr();
+    storage::min_chance = ds~load_uint(64);
+    storage::max_chance = ds~load_uint(64);
+    storage::min_bet = ds~load_uint(64);
+    storage::max_bet = ds~load_uint(64);
+    storage::is_locked? = ds~load_uint(32);
+  ds.end_parse();
+}
+
+() save_data() impure inline {
+  set_data(
+    begin_cell()
+      .store_slice(storage::owner_address)
+      .store_uint(storage::min_chance, 64)
+      .store_uint(storage::max_chance, 64)
+      .store_uint(storage::min_bet, 64)
+      .store_uint(storage::max_bet, 64)
+      .store_uint(storage::is_locked?, 32)
+    .end_cell()
+  );
+}
+
+() recv_internal(int my_balance, int msg_value, cell in_msg_full, slice in_msg_body) impure {
+  if (in_msg_body.slice_empty?()) {
+        return ();
+  }
+
+  slice cs = in_msg_full.begin_parse();
+  int flags = cs~load_uint(4);
+  if (flags & 1) {
+      return ();
+  }
+
+  slice sender = cs~load_msg_addr();
+  int op = in_msg_body~load_uint(32);
+
+  load_data();
+
+  if (op == op::lock) {
+      throw_unless(401, equal_slices(sender, storage::owner_address));
+      storage::is_locked? = 1;
+      save_data();
+
+      return();
+  }
+
+  if (op == op::unlock) {
+      throw_unless(401, equal_slices(sender, storage::owner_address));
+      storage::is_locked? = 0;
+      save_data();
+
+      return();
+  }
+
+  if (op == op::withdraw) {
+    throw_unless(401, equal_slices(sender, storage::owner_address));
+    msg::send_withdraw(storage::owner_address);
+    
+    return();
+  }
+
+  if (op == op::lottery_min) {
+    if (storage::is_locked? == 1) {
+      msg::send_bounce(sender, msg_value);
+      throw(101);
+    }
+
+    ifnot (msg_value == storage::min_bet) {
+      msg::send_bounce(sender, msg_value);
+      throw(777);
+    }
+
+    msg::send_random_min(sender, storage::min_chance, storage::max_chance);
+
+    return();
+  }
+
+  if (op == op::lottery_max) {
+    if (storage::is_locked? == 1) {
+      msg::send_bounce(sender, msg_value);
+      throw(101);
+    }
+
+    ifnot (msg_value == storage::max_bet) {
+      msg::send_bounce(sender, msg_value);
+      throw(777);
+    }
+
+    msg::send_random_max(sender, storage::min_chance, storage::max_chance);
+
+    return();
+  }
+
+  if (op == op::change_owner) {
+    slice storage::owner_address = in_msg_body~load_msg_addr();
+    save_data();
+
+    return();
+  }
+
+  if (op == op::change_random_numbers) {
+    int storage::min_chance = in_msg_body~load_uint(64);
+    int storage::max_chance = in_msg_body~load_uint(64);
+    save_data();
+    
+    return();
+  }
+
+  if (op == op::change_min_bet) {
+    int storage::min_bet = in_msg_body~load_uint(64);
+    save_data();
+
+    return();
+  }
+
+  if (op == op::change_max_bet) {
+    int storage::max_bet = in_msg_body~load_uint(64);
+    save_data();
+
+    return();
+  }
+
+  throw(0xfffff);
+}
+
+;; Get Methods
+
+(slice) get_owner() method_id {
+  load_data();
+  return storage::owner_address;
+}
+
+(int) get_is_locked() method_id {
+  load_data();
+  return storage::is_locked?;
+}
+
+(int) get_max_chance() method_id {
+  load_data();
+  return storage::max_chance;
+}
+
+(int) get_min_chance() method_id {
+  load_data();
+  return storage::min_chance;
+}
+
+(int) get_max_bet() method_id {
+  load_data();
+  return storage::max_bet;
+}
+
+(int) get_min_bet() method_id {
+  load_data();
+  return storage::min_bet;
+}

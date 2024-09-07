@@ -1,0 +1,51 @@
+const int min_tons_for_storage = 100000000;
+
+() msg::send_bounce(slice sender, int msg_val) impure inline {
+    var msg = begin_cell()
+        .store_uint(0x10, 6)
+        .store_slice(sender) 
+        .store_coins(msg_val)
+        .store_uint(0, 107)
+    .end_cell();
+    send_raw_message(msg, 64);
+}
+
+() msg::send_withdraw(slice sender) impure inline {
+    raw_reserve(min_tons_for_storage, 0);
+    var msg = begin_cell()
+                .store_uint(0x10, 6) 
+                .store_slice(sender)
+                .store_coins(0)
+                .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1)
+              .end_cell();
+    send_raw_message(msg, 128);
+}
+
+() msg::send_random_min(slice sender, int a, int b) impure inline {
+    randomize_lt();
+    int x = rand(b - a) + a;
+
+    var msg = begin_cell()
+        .store_uint(0x10, 6)
+        .store_slice(sender) 
+        .store_coins(x)
+        .store_uint(0, 107)
+    .end_cell();
+    send_raw_message(msg, 64);
+}
+
+() msg::send_random_max(slice sender, int a, int b) impure inline {
+    int a_rand = (a * 15) / 100;
+    int b_rand = (b * 15) / 100;
+
+    randomize_lt();
+    int x_rand = rand(b_rand - a_rand) + a_rand;
+
+    var msg = begin_cell()
+        .store_uint(0x10, 6)
+        .store_slice(sender) 
+        .store_coins(x_rand)
+        .store_uint(0, 107)
+    .end_cell();
+    send_raw_message(msg, 64);
+}
