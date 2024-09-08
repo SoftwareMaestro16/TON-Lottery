@@ -127,6 +127,7 @@ global int storage::is_locked?;
   }
 
   if (op == op::change_owner) {
+    throw_unless(401, equal_slices(sender, storage::owner_address));
     slice storage::owner_address = in_msg_body~load_msg_addr();
     save_data();
 
@@ -134,6 +135,7 @@ global int storage::is_locked?;
   }
 
   if (op == op::change_random_numbers) {
+    throw_unless(401, equal_slices(sender, storage::owner_address));
     int storage::min_chance = in_msg_body~load_uint(64);
     int storage::max_chance = in_msg_body~load_uint(64);
     save_data();
@@ -142,6 +144,7 @@ global int storage::is_locked?;
   }
 
   if (op == op::change_min_bet) {
+    throw_unless(401, equal_slices(sender, storage::owner_address));
     int storage::min_bet = in_msg_body~load_uint(64);
     save_data();
 
@@ -149,6 +152,7 @@ global int storage::is_locked?;
   }
 
   if (op == op::change_max_bet) {
+    throw_unless(401, equal_slices(sender, storage::owner_address));
     int storage::max_bet = in_msg_body~load_uint(64);
     save_data();
 
